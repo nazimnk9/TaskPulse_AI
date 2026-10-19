@@ -103,6 +103,24 @@ export async function PATCH(
     const data = parsed.data;
 
     const updated = await db.$transaction(async (tx) => {
+      // If assignee is assigned, ensure they are a member of the project
+      if (data.assigneeId) {
+        const existingMember = await tx.projectMember.findUnique({
+          where: {
+            projectId_userId: { projectId: task.projectId, userId: data.assigneeId },
+          },
+        });
+        if (!existingMember) {
+          await tx.projectMember.create({
+            data: {
+              projectId: task.projectId,
+              userId: data.assigneeId,
+              role: "MEMBER",
+            },
+          });
+        }
+      }
+
       const taskUpdated = await tx.task.update({
         where: { id },
         data: {

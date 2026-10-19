@@ -96,6 +96,7 @@ export function TaskDetailModal({
   const [loading, setLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [assigneeUpdating, setAssigneeUpdating] = useState(false);
+  const [projectMembers, setProjectMembers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [workflowError, setWorkflowError] = useState<{ reason: string; blocking?: string[] } | null>(null);
 
   // Subtask adding
@@ -199,6 +200,29 @@ export function TaskDetailModal({
         if (res.ok) {
           const data = await res.json();
           setTask(data.task);
+          if (data.task?.project?.id) {
+            fetch(`/api/projects/${data.task.project.id}/members`)
+              .then((r) => r.json())
+              .then((d) => {
+                const list: { id: string; name: string; email: string }[] = [];
+                const seen = new Set<string>();
+                (d.members || []).forEach((m: any) => {
+                  const u = m.user || m;
+                  if (u?.id && !seen.has(u.id)) {
+                    seen.add(u.id);
+                    list.push({ id: u.id, name: u.name, email: u.email });
+                  }
+                });
+                (d.availableUsers || []).forEach((u: any) => {
+                  if (u?.id && !seen.has(u.id)) {
+                    seen.add(u.id);
+                    list.push({ id: u.id, name: u.name, email: u.email });
+                  }
+                });
+                setProjectMembers(list);
+              })
+              .catch(() => {});
+          }
         } else {
           toast.error("Failed to load task details");
         }
@@ -532,9 +556,12 @@ export function TaskDetailModal({
                   className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-semibold text-slate-200 hover:border-blue-500 focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-50 transition-colors"
                 >
                   <option value="">Unassigned</option>
-                  {task.project?.members?.map((m) => (
-                    <option key={m.user.id} value={m.user.id}>
-                      {m.user.name} ({m.user.email})
+                  {(projectMembers.length > 0
+                    ? projectMembers
+                    : (task.project?.members?.map((m) => m.user) || [])
+                  ).map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email})
                     </option>
                   ))}
                 </select>

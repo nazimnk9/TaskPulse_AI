@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create project and assign creator as OWNER member in a transaction
+    // Create project and assign creator as ADMIN and all existing team members as MEMBERS
     const project = await db.$transaction(async (tx) => {
       const newProj = await tx.project.create({
         data: {
@@ -94,12 +94,28 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      await tx.projectMember.create({
-        data: {
-          projectId: newProj.id,
-          userId: user.id,
-          role: "ADMIN",
-        },
+      // Fetch all registered workspace users to automatically include team members
+      const allUsers = await tx.user.findMany({
+        select: { id: true },
+      });
+
+      const membersToCreate =
+        allUsers.length > 0
+          ? allUsers.map((u) => ({
+              projectId: newProj.id,
+              userId: u.id,
+              role: (u.id === user.id ? "ADMIN" : "MEMBER") as "ADMIN" | "MEMBER",
+            }))
+          : [
+              {
+                projectId: newProj.id,
+                userId: user.id,
+                role: "ADMIN" as const,
+              },
+            ];
+
+      await tx.projectMember.createMany({
+        data: membersToCreate,
       });
 
       return newProj;

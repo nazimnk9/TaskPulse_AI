@@ -35,7 +35,20 @@ export function CreateTaskModal({
     if (isOpen && projectId) {
       fetch(`/api/projects/${projectId}/members`)
         .then((r) => r.json())
-        .then((d) => setMembers(d.members || []))
+        .then((d) => {
+          const projectMembers = (d.members || []).map((m: any) => ({
+            id: m.id || m.userId,
+            user: m.user || m,
+          }));
+          const existingIds = new Set(projectMembers.map((m: any) => m.user?.id));
+          const available = (d.availableUsers || [])
+            .filter((u: any) => !existingIds.has(u.id))
+            .map((u: any) => ({
+              id: u.id,
+              user: u,
+            }));
+          setMembers([...projectMembers, ...available]);
+        })
         .catch(() => {});
     }
   }, [isOpen, projectId]);

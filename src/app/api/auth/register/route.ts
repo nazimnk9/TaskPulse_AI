@@ -54,6 +54,25 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Auto-add new user to existing active projects so they can immediately participate
+    try {
+      const activeProjects = await db.project.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true },
+      });
+      if (activeProjects.length > 0) {
+        await db.projectMember.createMany({
+          data: activeProjects.map((p) => ({
+            projectId: p.id,
+            userId: user.id,
+            role: "MEMBER",
+          })),
+        });
+      }
+    } catch (e) {
+      console.warn("Auto-adding user to active projects failed:", e);
+    }
+
     // Create session token
     const token = await createAuthToken({
       userId: user.id,

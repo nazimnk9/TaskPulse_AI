@@ -153,6 +153,24 @@ export async function POST(req: NextRequest) {
     const taskKey = `${project.key}-${totalExisting + 1}`;
 
     const createdTask = await db.$transaction(async (tx) => {
+      // Ensure assignee is a member of the project
+      if (assigneeId) {
+        const existingMember = await tx.projectMember.findUnique({
+          where: {
+            projectId_userId: { projectId, userId: assigneeId },
+          },
+        });
+        if (!existingMember) {
+          await tx.projectMember.create({
+            data: {
+              projectId,
+              userId: assigneeId,
+              role: "MEMBER",
+            },
+          });
+        }
+      }
+
       const task = await tx.task.create({
         data: {
           projectId,
