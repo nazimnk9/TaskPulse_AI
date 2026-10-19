@@ -70,6 +70,9 @@ export function KanbanBoard({
     });
   }, [tasks, searchQuery, priorityFilter]);
 
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+
   // Handle quick move from card
   const handleQuickMove = async (
     taskId: string,
@@ -95,6 +98,45 @@ export function KanbanBoard({
       }
 
       toast.success(`Moved to ${targetStatus}`);
+      onRefresh();
+    } catch {
+      toast.error("Network error moving task");
+    }
+  };
+
+  // Handle drop from drag-and-drop
+  const handleDrop = async (
+    taskId: string,
+    targetStatus: "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE"
+  ) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    if (task.status === targetStatus) return;
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: targetStatus }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 422) {
+          toast.warning("Status Transition Blocked", data.reason);
+          // Open detail modal to show the blocker
+          setSelectedTaskId(taskId);
+        } else {
+          toast.error("Failed to move task", data.error);
+        }
+        return;
+      }
+
+      toast.success(
+        "Task moved",
+        `${task.taskKey} moved to ${targetStatus.replace("_", " ")}`
+      );
       onRefresh();
     } catch {
       toast.error("Network error moving task");
@@ -167,11 +209,37 @@ export function KanbanBoard({
         {COLUMNS.map((col) => {
           const colTasks = filteredTasks.filter((t) => t.status === col.status);
           const colStoryPoints = colTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
+          const isOver = dragOverColumn === col.status;
 
           return (
             <div
               key={col.status}
-              className={`w-72 sm:w-80 shrink-0 rounded-2xl bg-slate-900/50 border ${col.color} p-3.5 flex flex-col gap-3 min-h-[540px]`}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                if (dragOverColumn !== col.status) {
+                  setDragOverColumn(col.status);
+                }
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                  setDragOverColumn(null);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverColumn(null);
+                const taskId = e.dataTransfer.getData("text/plain") || draggedTaskId;
+                if (taskId) {
+                  handleDrop(taskId, col.status);
+                }
+                setDraggedTaskId(null);
+              }}
+              className={`w-72 sm:w-80 shrink-0 rounded-2xl p-3.5 flex flex-col gap-3 min-h-[540px] transition-all duration-200 ${
+                isOver
+                  ? "bg-slate-900/95 border-2 border-blue-500 ring-4 ring-blue-500/20 shadow-2xl scale-[1.01]"
+                  : `bg-slate-900/50 border ${col.color}`
+              }`}
             >
               {/* Column Header */}
               <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
@@ -192,18 +260,31 @@ export function KanbanBoard({
                 )}
               </div>
 
+              {/* Drop Target Indicator */}
+              {isOver && (
+                <div className="p-3 rounded-xl border-2 border-dashed border-blue-500/80 bg-blue-500/10 text-blue-300 text-xs font-semibold flex items-center justify-center gap-2 animate-pulse py-3">
+                  <span>Drop to move to {col.label}</span>
+                </div>
+              )}
+
               {/* Tasks List */}
               <div className="flex flex-col gap-2.5 flex-1">
                 {colTasks.map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
+                    isDragging={draggedTaskId === task.id}
+                    onDragStart={() => setDraggedTaskId(task.id)}
+                    onDragEnd={() => {
+                      setDraggedTaskId(null);
+                      setDragOverColumn(null);
+                    }}
                     onClick={() => setSelectedTaskId(task.id)}
                     onQuickMove={(next) => handleQuickMove(task.id, next)}
                   />
                 ))}
 
-                {colTasks.length === 0 && (
+                {colTasks.length === 0 && !isOver && (
                   <div className="flex-1 flex flex-col items-center justify-center p-6 text-center border border-dashed border-slate-800/80 rounded-xl text-slate-500 text-xs">
                     <Inbox className="w-6 h-6 mb-1 text-slate-600" />
                     <span>No tasks in {col.label.toLowerCase()}</span>

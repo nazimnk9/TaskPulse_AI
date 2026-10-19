@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, CheckSquare, Calendar, ChevronRight } from "lucide-react";
+import { MessageSquare, CheckSquare, Calendar, ChevronRight, GripVertical } from "lucide-react";
 import { PriorityBadge, RiskBadge, AiBadge } from "@/components/ui/Badge";
 
 export interface TaskItem {
@@ -30,9 +30,19 @@ interface TaskCardProps {
   task: TaskItem;
   onClick: () => void;
   onQuickMove?: (targetStatus: "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE") => void;
+  isDragging?: boolean;
+  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
-export function TaskCard({ task, onClick, onQuickMove }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onClick,
+  onQuickMove,
+  isDragging = false,
+  onDragStart,
+  onDragEnd,
+}: TaskCardProps) {
   const completedSubtasks = task.subtasks.filter((s) => s.isCompleted).length;
   const totalSubtasks = task.subtasks.length;
   const progressPercent = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
@@ -49,12 +59,26 @@ export function TaskCard({ task, onClick, onQuickMove }: TaskCardProps) {
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", task.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart?.(e);
+      }}
+      onDragEnd={(e) => {
+        onDragEnd?.(e);
+      }}
       onClick={onClick}
-      className="group relative p-4 rounded-xl border border-slate-800 bg-slate-900/80 hover:bg-slate-850 hover:border-slate-700 shadow-lg shadow-black/20 transition-all duration-200 cursor-pointer flex flex-col gap-3"
+      className={`group relative p-4 rounded-xl border transition-all duration-200 cursor-grab active:cursor-grabbing flex flex-col gap-3 select-none ${
+        isDragging
+          ? "opacity-35 scale-95 border-blue-500 bg-blue-950/40 shadow-none ring-2 ring-blue-500/50"
+          : "border-slate-800 bg-slate-900/80 hover:bg-slate-850 hover:border-slate-700 shadow-lg shadow-black/20 hover:shadow-xl hover:-translate-y-0.5"
+      }`}
     >
       {/* Header: Key, Badges, Story Points */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 flex-wrap">
+          <GripVertical className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-colors shrink-0" />
           <span className="font-mono text-xs font-semibold text-slate-400 group-hover:text-blue-400 transition-colors">
             {task.taskKey}
           </span>
