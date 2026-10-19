@@ -24,9 +24,11 @@ describe("Workflow State Machine & Business Invariants", () => {
     expect(r4.allowed).toBe(true);
   });
 
-  it("permits moving backward from IN_REVIEW to IN_PROGRESS when changes are requested", () => {
-    const result = validateStatusTransition("IN_REVIEW", "IN_PROGRESS");
-    expect(result.allowed).toBe(true);
+  it("permits moving backward at any stage when revisions or re-opening are needed", () => {
+    expect(validateStatusTransition("DONE", "IN_REVIEW").allowed).toBe(true);
+    expect(validateStatusTransition("IN_REVIEW", "IN_PROGRESS").allowed).toBe(true);
+    expect(validateStatusTransition("IN_PROGRESS", "TODO").allowed).toBe(true);
+    expect(validateStatusTransition("TODO", "BACKLOG").allowed).toBe(true);
   });
 
   it("blocks illegal transitions that bypass required workflow phases", () => {

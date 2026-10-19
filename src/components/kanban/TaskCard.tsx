@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, CheckSquare, Calendar, ChevronRight, GripVertical } from "lucide-react";
+import { MessageSquare, CheckSquare, Calendar, ChevronRight, ChevronLeft, GripVertical } from "lucide-react";
 import { PriorityBadge, RiskBadge, AiBadge } from "@/components/ui/Badge";
 
 export interface TaskItem {
@@ -47,6 +47,14 @@ export function TaskCard({
   const totalSubtasks = task.subtasks.length;
   const progressPercent = totalSubtasks > 0 ? Math.round((completedSubtasks / totalSubtasks) * 100) : 0;
 
+  const prevStatusMap: Record<string, "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE" | null> = {
+    BACKLOG: null,
+    TODO: "BACKLOG",
+    IN_PROGRESS: "TODO",
+    IN_REVIEW: "IN_PROGRESS",
+    DONE: "IN_REVIEW",
+  };
+
   const nextStatusMap: Record<string, "BACKLOG" | "TODO" | "IN_PROGRESS" | "IN_REVIEW" | "DONE" | null> = {
     BACKLOG: "TODO",
     TODO: "IN_PROGRESS",
@@ -55,6 +63,7 @@ export function TaskCard({
     DONE: null,
   };
 
+  const prevStatus = prevStatusMap[task.status];
   const nextStatus = nextStatusMap[task.status];
 
   return (
@@ -154,18 +163,35 @@ export function TaskCard({
             <span className="text-[10px] text-slate-400 italic">Unassigned</span>
           )}
 
-          {nextStatus && onQuickMove && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onQuickMove(nextStatus);
-              }}
-              title={`Advance to ${nextStatus}`}
-              className="p-1 rounded bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {prevStatus && onQuickMove && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickMove(prevStatus);
+                }}
+                title={`Move back to ${prevStatus.replace("_", " ")}`}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {nextStatus && onQuickMove && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onQuickMove(nextStatus);
+                }}
+                title={`Advance to ${nextStatus.replace("_", " ")}`}
+                className="p-1 rounded bg-slate-800 hover:bg-blue-600 text-slate-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
