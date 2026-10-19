@@ -12,9 +12,11 @@ import {
   ArrowRight,
   Sparkles,
   ShieldAlert,
+  Settings,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
 import { CreateProjectModal } from "@/components/project/CreateProjectModal";
+import { EditProjectModal } from "@/components/project/EditProjectModal";
 import { ProjectCardSkeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/components/ui/Toast";
 
@@ -38,6 +40,7 @@ export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -136,10 +139,24 @@ export default function DashboardPage() {
                       <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/30">
                         {proj.key}
                       </span>
-                      <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5" />
-                        {proj.members.length} member{proj.members.length === 1 ? "" : "s"}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5" />
+                          {proj.members.length} member{proj.members.length === 1 ? "" : "s"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingProjectId(proj.id);
+                          }}
+                          title="Edit Project Settings"
+                          className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                        >
+                          <Settings className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors">
@@ -176,6 +193,14 @@ export default function DashboardPage() {
           fetchProjects();
           router.push(`/dashboard/projects/${newId}`);
         }}
+      />
+
+      <EditProjectModal
+        projectId={editingProjectId || ""}
+        isOpen={!!editingProjectId}
+        onClose={() => setEditingProjectId(null)}
+        onProjectUpdated={fetchProjects}
+        onProjectDeleted={fetchProjects}
       />
     </div>
   );

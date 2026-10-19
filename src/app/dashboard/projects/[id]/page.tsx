@@ -16,6 +16,7 @@ import { KanbanBoard } from "@/components/kanban/KanbanBoard";
 import { KanbanColumnSkeleton } from "@/components/ui/Skeleton";
 import { TaskItem } from "@/components/kanban/TaskCard";
 import { ManageMembersModal } from "@/components/project/ManageMembersModal";
+import { EditProjectModal } from "@/components/project/EditProjectModal";
 import { useToast } from "@/components/ui/Toast";
 
 interface ProjectDetail {
@@ -44,6 +45,7 @@ export default function ProjectWorkspacePage({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isEditProjectOpen, setIsEditProjectOpen] = useState(false);
 
   const loadData = async (isManualRefresh = false) => {
     if (isManualRefresh) setRefreshing(true);
@@ -111,17 +113,29 @@ export default function ProjectWorkspacePage({
           {/* Right Header Badges & Refresh */}
           <div className="flex items-center gap-3 self-end sm:self-center">
             {project && (
-              <button
-                type="button"
-                onClick={() => setIsMembersModalOpen(true)}
-                className="flex items-center gap-2 text-xs text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 transition-all cursor-pointer"
-              >
-                <Users className="w-3.5 h-3.5 text-blue-400" />
-                <span className="font-semibold">{project.members.length} Members</span>
-                <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded font-semibold border border-blue-500/20">
-                  Manage / Invite
-                </span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsEditProjectOpen(true)}
+                  className="flex items-center gap-2 text-xs text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 transition-all cursor-pointer"
+                  title="Edit Project Details"
+                >
+                  <Settings className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold">Edit Project</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsMembersModalOpen(true)}
+                  className="flex items-center gap-2 text-xs text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 transition-all cursor-pointer"
+                >
+                  <Users className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="font-semibold">{project.members.length} Members</span>
+                  <span className="text-[10px] text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded font-semibold border border-blue-500/20">
+                    Manage / Invite
+                  </span>
+                </button>
+              </>
             )}
 
             <button
@@ -156,13 +170,23 @@ export default function ProjectWorkspacePage({
       </main>
 
       {project && (
-        <ManageMembersModal
-          projectId={projectId}
-          projectName={project.name}
-          isOpen={isMembersModalOpen}
-          onClose={() => setIsMembersModalOpen(false)}
-          onMembersChanged={() => loadData(false)}
-        />
+        <>
+          <ManageMembersModal
+            projectId={projectId}
+            projectName={project.name}
+            isOpen={isMembersModalOpen}
+            onClose={() => setIsMembersModalOpen(false)}
+            onMembersChanged={() => loadData(false)}
+          />
+
+          <EditProjectModal
+            projectId={projectId}
+            isOpen={isEditProjectOpen}
+            onClose={() => setIsEditProjectOpen(false)}
+            onProjectUpdated={() => loadData(false)}
+            onProjectDeleted={() => router.push("/dashboard")}
+          />
+        </>
       )}
     </div>
   );

@@ -16,6 +16,9 @@ import {
   Loader2,
   CheckCircle2,
   User,
+  Edit3,
+  Save,
+  XCircle,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { PriorityBadge, StatusBadge, RiskBadge, AiBadge } from "@/components/ui/Badge";
@@ -106,16 +109,91 @@ export function TaskDetailModal({
   // Active tab
   const [activeTab, setActiveTab] = useState<"details" | "activity" | "ai">("details");
 
+  // Task inline editing
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPriority, setEditPriority] = useState<"LOW" | "MEDIUM" | "HIGH" | "URGENT">("MEDIUM");
+  const [editStoryPoints, setEditStoryPoints] = useState<string>("");
+  const [editDueDate, setEditDueDate] = useState<string>("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const startEditing = () => {
+    if (!task) return;
+    setEditTitle(task.title);
+    setEditDescription(task.description || "");
+    setEditPriority(task.priority);
+    setEditStoryPoints(task.storyPoints !== null && task.storyPoints !== undefined ? String(task.storyPoints) : "");
+    setEditDueDate(task.dueDate ? new Date(task.dueDate).toISOString().split("T")[0] : "");
+    setIsEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!task) return;
+    if (!editTitle.trim() || editTitle.trim().length < 3) {
+      toast.warning("Validation Error", "Task title must be at least 3 characters");
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle.trim(),
+          description: editDescription.trim() || null,
+          priority: editPriority,
+          storyPoints: editStoryPoints !== "" ? Number(editStoryPoints) : null,
+          dueDate: editDueDate ? new Date(editDueDate).toISOString() : null,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        toast.success("Task updated successfully!");
+        setTask((prev) =>
+          prev
+            ? {
+                ...prev,
+                title: data.task.title,
+                description: data.task.description,
+                priority: data.task.priority,
+                storyPoints: data.task.storyPoints,
+                dueDate: data.task.dueDate,
+                riskMetrics: data.task.riskMetrics || prev.riskMetrics,
+              }
+            : null
+        );
+        setIsEditing(false);
+        onTaskUpdated();
+      } else {
+        toast.error("Failed to update task", data.error || "Validation error");
+      }
+    } catch {
+      toast.error("Network error updating task");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   useEffect(() => {
     if (!taskId || !isOpen) {
       setTask(null);
       setWorkflowError(null);
+      setIsEditing(false);
       return;
     }
 
     async function loadTask() {
       setLoading(true);
       setWorkflowError(null);
+      setIsEditing(false);
       try {
         const res = await fetch(`/api/tasks/${taskId}`);
         if (res.ok) {
@@ -467,17 +545,127 @@ export function TaskDetailModal({
             </div>
           </div>
 
-          {/* Title & Description */}
-          <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">{task.title}</h2>
-            {task.description ? (
-              <p className="mt-2 text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-slate-950/40 p-3.5 rounded-xl border border-slate-800/80">
-                {task.description}
-              </p>
-            ) : (
-              <p className="mt-2 text-xs text-slate-500 italic">No description provided.</p>
-            )}
-          </div>
+          {/* Title & Description or Edit Mode */}
+          {isEditing ? (
+            <form
+              onSubmit={handleSaveEdit}
+              className="p-4 rounded-2xl bg-slate-900/90 border border-blue-500/40 shadow-xl flex flex-col gap-4 animate-fade-in"
+            >
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <span className="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                  <Edit3 className="w-4 h-4" />
+                  Edit Task Details
+                </span>
+                <span className="text-[11px] text-slate-500 font-mono">{task.taskKey}</span>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-300">Task Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  placeholder="Short description of task..."
+                  className="w-full mt-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Priority</label>
+                  <select
+                    value={editPriority}
+                    onChange={(e) => setEditPriority(e.target.value as any)}
+                    className="w-full mt-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
+                    <option value="URGENT">Urgent</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Story Points (1-21)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={21}
+                    value={editStoryPoints}
+                    onChange={(e) => setEditStoryPoints(e.target.value)}
+                    placeholder="e.g. 3, 5, 8"
+                    className="w-full mt-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300">Due Date</label>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className="w-full mt-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-300">Description</label>
+                <textarea
+                  rows={4}
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Detailed scope, prerequisites, or implementation plan..."
+                  className="w-full mt-1.5 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={cancelEditing}
+                  disabled={isSavingEdit}
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-blue-600/30 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingEdit ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Save className="w-3.5 h-3.5" />
+                  )}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <h2 className="text-xl font-bold text-white tracking-tight flex-1">{task.title}</h2>
+                <button
+                  type="button"
+                  onClick={startEditing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 hover:text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer shrink-0"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  Edit Task
+                </button>
+              </div>
+              {task.description ? (
+                <p className="mt-2 text-sm text-slate-300 leading-relaxed whitespace-pre-line bg-slate-950/40 p-3.5 rounded-xl border border-slate-800/80">
+                  {task.description}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-slate-500 italic">No description provided.</p>
+              )}
+            </div>
+          )}
 
           {/* Tab Navigation */}
           <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
