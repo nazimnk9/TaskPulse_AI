@@ -21,7 +21,17 @@ export async function GET(
       where: { id },
       include: {
         project: {
-          select: { id: true, name: true, key: true, ownerId: true },
+          select: {
+            id: true,
+            name: true,
+            key: true,
+            ownerId: true,
+            members: {
+              include: {
+                user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+              },
+            },
+          },
         },
         creator: { select: { id: true, name: true, email: true, avatarUrl: true } },
         assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
@@ -92,16 +102,40 @@ export async function PATCH(
 
     const data = parsed.data;
 
-    const updated = await db.task.update({
-      where: { id },
-      data: {
-        ...data,
-        dueDate: data.dueDate !== undefined ? (data.dueDate ? new Date(data.dueDate) : null) : undefined,
-      },
-      include: {
-        subtasks: true,
-        assignee: { select: { id: true, name: true, email: true } },
-      },
+    const updated = await db.$transaction(async (tx) => {
+      const taskUpdated = await tx.task.update({
+        where: { id },
+        data: {
+          ...data,
+          dueDate: data.dueDate !== undefined ? (data.dueDate ? new Date(data.dueDate) : null) : undefined,
+        },
+        include: {
+          subtasks: true,
+          assignee: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        },
+      });
+
+      // If assignee changed, log it in activity log
+      if (data.assigneeId !== undefined && data.assigneeId !== task.assigneeId) {
+        let details = "Unassigned task";
+        if (data.assigneeId) {
+          const assigneeUser = await tx.user.findUnique({
+            where: { id: data.assigneeId },
+            select: { name: true },
+          });
+          details = `Assigned task to ${assigneeUser?.name || "team member"}`;
+        }
+        await tx.activityLog.create({
+          data: {
+            taskId: task.id,
+            actorId: user.id,
+            action: "ASSIGNEE_CHANGED",
+            details,
+          },
+        });
+      }
+
+      return taskUpdated;
     });
 
     return NextResponse.json({

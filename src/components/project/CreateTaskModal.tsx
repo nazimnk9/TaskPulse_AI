@@ -28,6 +28,17 @@ export function CreateTaskModal({
   const [subtasks, setSubtasks] = useState<string[]>([]);
   const [newSubtaskInput, setNewSubtaskInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [members, setMembers] = useState<{ id: string; user: { id: string; name: string; email: string } }[]>([]);
+  const [assigneeId, setAssigneeId] = useState("");
+
+  React.useEffect(() => {
+    if (isOpen && projectId) {
+      fetch(`/api/projects/${projectId}/members`)
+        .then((r) => r.json())
+        .then((d) => setMembers(d.members || []))
+        .catch(() => {});
+    }
+  }, [isOpen, projectId]);
 
   const handleAddSubtask = () => {
     if (newSubtaskInput.trim()) {
@@ -60,6 +71,7 @@ export function CreateTaskModal({
           priority,
           storyPoints: storyPoints !== "" ? Number(storyPoints) : undefined,
           dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+          assigneeId: assigneeId || undefined,
           subtasks: subtasks.map((st) => ({ title: st })),
         }),
       });
@@ -173,6 +185,22 @@ export function CreateTaskModal({
               className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-blue-500"
             />
           </div>
+        </div>
+
+        <div>
+          <label className="font-semibold text-slate-300">Assign Member</label>
+          <select
+            value={assigneeId}
+            onChange={(e) => setAssigneeId(e.target.value)}
+            className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-blue-500"
+          >
+            <option value="">Unassigned</option>
+            {members.map((m) => (
+              <option key={m.user.id} value={m.user.id}>
+                {m.user.name} ({m.user.email})
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Subtasks */}

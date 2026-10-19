@@ -15,6 +15,7 @@ import {
   Send,
   Loader2,
   CheckCircle2,
+  User,
 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { PriorityBadge, StatusBadge, RiskBadge, AiBadge } from "@/components/ui/Badge";
@@ -54,7 +55,16 @@ interface TaskDetail {
   aiGenerated: boolean;
   aiMetadata?: string | null;
   creator: { id: string; name: string; email: string };
-  assignee?: { id: string; name: string; email: string } | null;
+  assignee?: { id: string; name: string; email: string; avatarUrl?: string | null } | null;
+  project?: {
+    id: string;
+    name: string;
+    key: string;
+    ownerId: string;
+    members?: {
+      user: { id: string; name: string; email: string; avatarUrl?: string | null };
+    }[];
+  };
   subtasks: Subtask[];
   comments: Comment[];
   activityLogs: ActivityLog[];
@@ -82,6 +92,7 @@ export function TaskDetailModal({
   const [task, setTask] = useState<TaskDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [assigneeUpdating, setAssigneeUpdating] = useState(false);
   const [workflowError, setWorkflowError] = useState<{ reason: string; blocking?: string[] } | null>(null);
 
   // Subtask adding
@@ -162,6 +173,38 @@ export function TaskDetailModal({
       toast.error("Network error updating status");
     } finally {
       setStatusUpdating(false);
+    }
+  };
+
+  // Handle assignee change
+  const handleAssigneeChange = async (newAssigneeId: string) => {
+    if (!task) return;
+    const targetId = newAssigneeId === "" ? null : newAssigneeId;
+
+    setAssigneeUpdating(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: targetId }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setTask((prev) => (prev ? { ...prev, assignee: data.task.assignee } : null));
+        toast.success(
+          data.task.assignee
+            ? `Task assigned to ${data.task.assignee.name}`
+            : "Task unassigned"
+        );
+        onTaskUpdated();
+      } else {
+        toast.error("Failed to update assignee", data.error);
+      }
+    } catch {
+      toast.error("Network error updating assignee");
+    } finally {
+      setAssigneeUpdating(false);
     }
   };
 
@@ -398,6 +441,30 @@ export function TaskDetailModal({
             )}
 
             {task.aiGenerated && <AiBadge />}
+
+            {/* Interactive Assignee Selector */}
+            <div className="flex items-center gap-1.5 ml-auto">
+              <User className="w-3.5 h-3.5 text-slate-500" />
+              <span className="text-slate-500">Assignee:</span>
+              <div className="relative flex items-center">
+                <select
+                  value={task.assignee?.id || ""}
+                  disabled={assigneeUpdating}
+                  onChange={(e) => handleAssigneeChange(e.target.value)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-700 text-xs font-semibold text-slate-200 hover:border-blue-500 focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-50 transition-colors"
+                >
+                  <option value="">Unassigned</option>
+                  {task.project?.members?.map((m) => (
+                    <option key={m.user.id} value={m.user.id}>
+                      {m.user.name} ({m.user.email})
+                    </option>
+                  ))}
+                </select>
+                {assigneeUpdating && (
+                  <Loader2 className="w-3 h-3 animate-spin text-blue-400 ml-1.5" />
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Title & Description */}
