@@ -12,9 +12,12 @@
 Software engineering teams spend excessive time in sprint planning manually decomposing vague requirements and user stories into technical checklists, estimating complexity, and verifying acceptance criteria. In addition, existing lightweight trackers lack strict business workflow invariants, leading to tickets being closed prematurely before subtasks and testing requirements are verified.
 
 **TaskPulse AI** is an enterprise-ready, full-stack issue tracking and agile sprint management platform built with Next.js App Router, TypeScript, Prisma ORM, and Google Gemini AI. It combines:
-1. **Strict Business Logic & Workflow State Machine:** Enforces valid agile lifecycle transitions (`BACKLOG` → `TODO` → `IN_PROGRESS` → `IN_REVIEW` → `DONE`) and strictly blocks premature ticket closure if subtasks remain incomplete.
-2. **AI Task Decomposition & Acceptance Criteria Engine:** Transforms natural-language feature ideas or bug reports into structured, testable tickets complete with decomposed subtasks, Given-When-Then acceptance criteria, risk ratings, and Fibonacci story point estimates.
-3. **Automated Sprint Velocity & Risk Analytics:** Calculates sprint health, identifies overdue bottlenecks, and provides automated recommendations.
+1. **Strict Business Logic & Workflow State Machine:** Enforces valid agile lifecycle transitions (`BACKLOG` ⇄ `TODO` ⇄ `IN_PROGRESS` ⇄ `IN_REVIEW` ⇄ `DONE`) and strictly blocks premature ticket closure if subtasks remain incomplete.
+2. **Bidirectional Drag-and-Drop & Quick Navigation:** Native HTML5 drag-and-drop between columns with live workflow validation, plus bidirectional quick-move buttons (`<` and `>`) on each card.
+3. **AI Task Decomposition & Acceptance Criteria Engine:** Transforms natural-language feature ideas or bug reports into structured, testable tickets complete with decomposed subtasks, Given-When-Then acceptance criteria, risk ratings, and Fibonacci story point estimates.
+4. **Project & Task Lifecycle Management:** Full CRUD editing capabilities for projects (name, description, status, deletion) and tasks (title, description, priority, story points, due date, assignee).
+5. **Team Collaboration & Member Management:** Invite and manage team members with role-based bindings (`ADMIN`, `MEMBER`, `VIEWER`).
+6. **Automated Sprint Velocity & Risk Analytics:** Calculates sprint health, identifies overdue bottlenecks, and provides automated recommendations.
 
 ---
 
@@ -145,6 +148,16 @@ Implemented in [`src/lib/workflow.ts`](file:///run/media/md-nazim-ahmed/New%20Vo
   - `MODERATE`: Approaching deadline on high-priority tickets.
   - `ON_TRACK`: Progressing within timeline.
 
+### D. Native HTML5 Drag-and-Drop Workflow Transitions
+- Developers can drag and drop task cards freely between Kanban columns.
+- State transitions are validated against the agile state machine and subtask blocker rules upon drop.
+- If a card with incomplete subtasks is dropped onto `DONE`, the system cancels the drop, reverts the card smoothly, and displays a toast explaining the violation.
+
+### E. Bidirectional Quick-Move Controls
+- Each task card features bidirectional action controls:
+  - **`>` (Next State):** Transitions ticket forward along the agile progression.
+  - **`<` (Previous State):** Reverts ticket backward (e.g. from `IN_REVIEW` back to `IN_PROGRESS` when changes are requested, or from `DONE` back to `IN_REVIEW`).
+
 ---
 
 ## 8. AI / ML Feature Deep Dive (NT Tech Assessment Section 2)
@@ -201,14 +214,25 @@ During the live evaluation, you can demonstrate the following workflows:
    - Log in with one click via `admin@devsprint.io`.
    - View the active project **PulseFlow Core Platform**.
    - Inspect the Kanban board with 5 status columns, progress bars, and risk badges.
-2. **Demonstrate Business Logic Blocker:**
+2. **Demonstrate Drag & Drop & Bidirectional Transitions:**
+   - Grab any task card and drag it across columns.
+   - Use the **`>`** (next status) and **`<`** (previous status) buttons to move tasks forward and backward seamlessly.
+3. **Demonstrate Business Logic Blocker:**
    - Open ticket **`PULSE-3`** (*"Build Kanban Board UI"*), which has an incomplete subtask.
-   - Click the **"DONE"** button. Notice how the system blocks the transition, displays a warning banner explaining that subtask 3 is incomplete, and records the blocked attempt in the Activity Audit log.
+   - Click the **"DONE"** button (or attempt to drag it to the DONE column). Notice how the system blocks the transition, displays a warning banner explaining that subtask 3 is incomplete, and records the blocked attempt in the Activity Audit log.
    - Check the checkbox to mark the subtask complete, then click **"DONE"** again—the task transitions successfully.
-3. **Demonstrate AI Feature:**
+4. **Demonstrate Task Editing & In-Place Updates:**
+   - Click any task to open the **Task Detail Modal**.
+   - Click the **"Edit Task"** button in the header.
+   - Modify the title, priority, story points, due date, or description, and click **"Save Changes"**.
+   - See the board instantly reflect the updated attributes without page reload.
+5. **Demonstrate Project Settings & Team Member Management:**
+   - On the Kanban header, click **"Edit Project"** to edit the project name, description, or status (`ACTIVE`/`ARCHIVED`).
+   - Click **"Manage / Invite"** to view team members, invite registered engineers (e.g. `alex@devsprint.io`), assign roles (`MEMBER`, `ADMIN`, `VIEWER`), or remove members.
+6. **Demonstrate AI Task Decomposition:**
    - Click **"AI Task Assistant"** on the toolbar.
    - Pick a preset (e.g. *"Implement OAuth2 Google & GitHub Single Sign-On"*).
    - Click **"Analyze & Decompose"**. Inspect the generated acceptance criteria and subtasks.
    - Click **"Confirm & Create Ticket"**—the ticket immediately appears on the live Kanban board.
-4. **Live Code Modification Readiness:**
+7. **Live Code Modification Readiness:**
    - *Example task: Add a new priority level or change a validation rule.* Simply update `src/lib/validations.ts` and `src/lib/workflow.ts`—clean architecture makes adjustments immediate and safe.
