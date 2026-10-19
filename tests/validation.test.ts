@@ -3,6 +3,7 @@ import {
   RegisterSchema,
   LoginSchema,
   CreateProjectSchema,
+  UpdateProjectSchema,
   CreateTaskSchema,
   TransitionStatusSchema,
 } from "../src/lib/validations";
@@ -53,6 +54,14 @@ describe("Input Validation Schemas (Zod)", () => {
         key: "bank-1", // invalid: lowercase and dash
       });
       expect(res.success).toBe(false);
+    });
+
+    it("accepts valid update project key prefix", () => {
+      const res = UpdateProjectSchema.safeParse({
+        name: "Mobile Banking App V2",
+        key: "BANKV2",
+      });
+      expect(res.success).toBe(true);
     });
   });
 

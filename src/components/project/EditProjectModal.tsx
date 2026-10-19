@@ -60,6 +60,15 @@ export function EditProjectModal({
       return;
     }
 
+    const formattedKey = key.trim().toUpperCase();
+    if (!formattedKey || !/^[A-Z0-9]{2,10}$/.test(formattedKey)) {
+      toast.warning(
+        "Invalid Project Key",
+        "Project key must be 2-10 uppercase alphanumeric characters (e.g. PRJ, CORE)."
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(`/api/projects/${projectId}`, {
@@ -67,6 +76,7 @@ export function EditProjectModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
+          key: formattedKey,
           description: description.trim() || undefined,
           status,
         }),
@@ -148,15 +158,18 @@ export function EditProjectModal({
           </div>
 
           <div>
-            <label className="font-semibold text-slate-300">Project Key Prefix</label>
+            <label className="font-semibold text-slate-300">Project Key Prefix *</label>
             <input
               type="text"
-              disabled
+              required
               value={key}
-              className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-900/60 border border-slate-800 text-slate-400 font-mono cursor-not-allowed"
+              onChange={(e) => setKey(e.target.value.toUpperCase())}
+              maxLength={10}
+              placeholder="e.g. PRJ, CORE"
+              className="w-full mt-1 px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white font-mono uppercase tracking-wider focus:outline-none focus:border-blue-500"
             />
-            <span className="text-[10px] text-slate-500 mt-1 block">
-              Project keys are immutable to maintain task URL integrity.
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Changing this prefix will automatically update all existing task keys (e.g. {key || "KEY"}-1, {key || "KEY"}-2).
             </span>
           </div>
 

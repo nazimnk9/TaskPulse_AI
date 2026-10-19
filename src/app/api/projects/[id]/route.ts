@@ -86,9 +86,47 @@ export async function PATCH(
       );
     }
 
-    const updated = await db.project.update({
-      where: { id },
-      data: parsed.data,
+    const newKey = parsed.data.key ? parsed.data.key.toUpperCase() : undefined;
+    const oldKey = project.key;
+
+    if (newKey && newKey !== oldKey) {
+      const existingKey = await db.project.findUnique({
+        where: { key: newKey },
+      });
+      if (existingKey && existingKey.id !== id) {
+        return NextResponse.json(
+          { success: false, error: `Project key "${newKey}" is already in use. Please choose another prefix.` },
+          { status: 409 }
+        );
+      }
+    }
+
+    const updated = await db.$transaction(async (tx) => {
+      // If key is changing, update all task keys for this project
+      if (newKey && newKey !== oldKey) {
+        const projectTasks = await tx.task.findMany({
+          where: { projectId: id },
+          select: { id: true, taskKey: true },
+        });
+
+        for (const t of projectTasks) {
+          const parts = t.taskKey.split("-");
+          const taskNum = parts.length > 1 ? parts[parts.length - 1] : t.taskKey;
+          const updatedTaskKey = `${newKey}-${taskNum}`;
+          await tx.task.update({
+            where: { id: t.id },
+            data: { taskKey: updatedTaskKey },
+          });
+        }
+      }
+
+      return await tx.project.update({
+        where: { id },
+        data: {
+          ...parsed.data,
+          key: newKey || undefined,
+        },
+      });
     });
 
     return NextResponse.json({ success: true, project: updated });

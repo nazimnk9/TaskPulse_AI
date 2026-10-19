@@ -23,6 +23,12 @@ export const CreateProjectSchema = z.object({
 
 export const UpdateProjectSchema = z.object({
   name: z.string().min(2).max(80).optional(),
+  key: z
+    .string()
+    .min(2, "Key must be at least 2 characters")
+    .max(10, "Key must be at most 10 characters")
+    .regex(/^[A-Z0-9]+$/, "Project key must be alphanumeric uppercase (e.g. CORE, APP, DEV)")
+    .optional(),
   description: z.string().max(500).optional(),
   status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
 });
