@@ -44,10 +44,10 @@ Software engineering teams spend excessive time in sprint planning manually deco
 
 ```bash
 # 1. Clone the repository
-git clone <repo-url>
-cd project
+git clone https://github.com/nazimnk9/TaskPulse_AI.git
+cd TaskPulse_AI
 
-# 2. Install dependencies
+# 2. Install dependencies (auto-configured via .npmrc)
 npm install
 
 # 3. Synchronize database schema (SQLite)
